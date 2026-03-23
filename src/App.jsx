@@ -206,6 +206,171 @@ const sectionMaxScore = (section) =>
   section.questions.reduce((sum, q) => sum + Math.max(...q.options.map(o => o.score)), 0);
 
 // SVG Gauge component
+
+function generatePDF(opp, results, answers) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, M = 16, CW = W - M * 2;
+  const C = {
+    dark:[23,51,88], blue:[25,85,166], appBlue:[0,174,239],
+    green:[80,153,68], amber:[245,123,12], red:[161,31,34],
+    muted:[122,133,153], border:[221,228,240], bg:[244,246,251],
+    black:[54,56,57], white:[255,255,255],
+    lgn:[234,245,230], lrd:[249,234,235], lam:[255,244,232], lbl:[234,241,251],
+  };
+  let y = 0;
+
+  const newPage = () => {
+    addFooter();
+    doc.addPage();
+    doc.setFillColor(...C.dark); doc.rect(0, 0, W, 10, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...C.white);
+    doc.text('BID NO BID APP — BY GROUP PERFECT', M, 6.5);
+    doc.setFont('helvetica','normal'); doc.setTextColor(...C.muted);
+    doc.text('groupperfect.co.uk', W - M, 6.5, { align: 'right' });
+    y = 16;
+  };
+
+  const check = (need) => { if (y + need > 274) newPage(); };
+
+  const secHdr = (title, col) => {
+    check(14);
+    doc.setFillColor(...(col || C.blue)); doc.rect(M, y, CW, 6.5, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...C.white);
+    doc.text(title.toUpperCase(), M + 3.5, y + 4.5);
+    y += 10;
+  };
+
+  const addFooter = () => {
+    const pages = doc.internal.getNumberOfPages();
+    doc.setPage(pages);
+    doc.setFillColor(...C.dark); doc.rect(0, 284, W, 13, 'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...C.muted);
+    doc.text('groupperfect.co.uk', M, 290.5);
+    doc.text('Bid No Bid App — Confidential', W/2, 290.5, { align:'center' });
+    doc.text('Page ' + pages, W - M, 290.5, { align:'right' });
+  };
+
+  const verdict = results.verdict;
+  const vCol = verdict === 'Bid' ? C.green : verdict === 'Bid with Caution' ? C.amber : C.red;
+  const vBg  = verdict === 'Bid' ? C.lgn   : verdict === 'Bid with Caution' ? C.lam   : C.lrd;
+  const score = Math.round(results.weightedScore);
+
+  // PAGE 1 HEADER
+  doc.setFillColor(...C.dark); doc.rect(0, 0, W, 38, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(...C.white);
+  doc.text('Bid No Bid App', M, 16);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(170,195,225);
+  doc.text('by Group Perfect', M, 22);
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...C.white);
+  doc.text(opp.name || 'Bid Assessment', W - M, 16, { align:'right' });
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(170,195,225);
+  if (opp.client)   doc.text('Client: ' + opp.client, W - M, 22, { align:'right' });
+  if (opp.value)    doc.text('Value: ' + opp.value + (opp.deadline ? '   |   Deadline: ' + opp.deadline : ''), W - M, 28, { align:'right' });
+  doc.text('Generated ' + new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}), W - M, 34, { align:'right' });
+  y = 45;
+
+  // VERDICT
+  const reasoningText = results.verdict === 'Bid'
+    ? 'Your score of ' + score + '% suggests this is a strong opportunity worth pursuing. Your strongest section is ' + results.strongestSection + '. Lean into this in your bid strategy.'
+    : results.verdict === 'Bid with Caution'
+    ? 'Your score of ' + score + '% puts this in the amber zone. You can bid but should address key risks first — particularly in ' + results.weakestSection + ' where your score is lowest.'
+    : 'Your score of ' + score + '% suggests this may not be the right opportunity. Your weakest area is ' + results.weakestSection + '. Unless circumstances change, your resources may be better deployed elsewhere.';
+
+  const rLines = doc.splitTextToSize(reasoningText, CW - 16);
+  const bh = Math.max(38, 28 + rLines.length * 5.5 + 4);
+  doc.setFillColor(...vBg); doc.roundedRect(M, y, CW, bh, 3, 3, 'F');
+  doc.setDrawColor(...vCol); doc.setLineWidth(2);
+  doc.roundedRect(M, y, CW, bh, 3, 3, 'S');
+  doc.setFont('helvetica','bold'); doc.setFontSize(28); doc.setTextColor(...vCol);
+  doc.text(verdict, M + 8, y + 16);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...C.muted);
+  doc.text('Weighted score: ' + score + '% of maximum', M + 8, y + 22);
+  doc.setDrawColor(...vCol); doc.setLineWidth(0.5);
+  doc.line(M + 8, y + 25, M + CW - 8, y + 25);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...C.black);
+  let ty = y + 31;
+  rLines.forEach(line => { doc.text(line, M + 8, ty); ty += 5.3; });
+  y += bh + 6;
+
+  // SCORE BREAKDOWN
+  secHdr('Score Breakdown by Section');
+  results.sectionResults.forEach((sr, i) => {
+    check(9);
+    const col = sr.pct >= 66 ? C.green : sr.pct >= 33 ? C.amber : C.red;
+    const bW = CW * 0.48;
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...C.black);
+    doc.text(SECTIONS[i].badge + '  ' + SECTIONS[i].title, M, y + 3.2);
+    doc.setFillColor(...C.border); doc.rect(M + 62, y + 0.5, bW, 5, 'F');
+    doc.setFillColor(...col); doc.rect(M + 62, y + 0.5, bW * (sr.pct / 100), 5, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...col);
+    doc.text(Math.round(sr.pct) + '%', M + 62 + bW + 4, y + 3.2);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...C.muted);
+    doc.text('Weight: ' + SECTIONS[i].weight + '%', W - M, y + 3.2, { align:'right' });
+    y += 9;
+  });
+  y += 3;
+  doc.setFillColor(...C.border); doc.rect(M, y, CW, 6, 'F');
+  doc.setFillColor(...vCol); doc.rect(M, y, CW * (score / 100), 6, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...C.white);
+  doc.text('Weighted Total: ' + score + '%', M + 3, y + 3.8);
+  y += 10;
+
+  // SECTION DETAIL - page 2
+  newPage();
+  SECTIONS.forEach((sec, si) => {
+    const sr = results.sectionResults[si];
+    const vcol = sr.pct >= 66 ? C.green : sr.pct >= 33 ? C.amber : C.red;
+    check(18);
+    doc.setFillColor(...C.dark); doc.rect(M, y, CW, 7.5, 'F');
+    doc.setFillColor(...vcol); doc.rect(M + CW - 22, y, 22, 7.5, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...C.white);
+    doc.text('SECTION ' + sec.badge + '  —  ' + sec.title.toUpperCase(), M + 3.5, y + 4.8);
+    doc.text(Math.round(sr.pct) + '%', M + CW - 11, y + 4.8, { align:'center' });
+    y += 11;
+
+    sec.questions.forEach((q, qi) => {
+      const ans = answers[si][qi];
+      if (ans === null) return;
+      const opt = q.options[ans];
+      const pctQ = opt.score / Math.max(...q.options.map(o => o.score));
+      const qcol = pctQ >= 0.66 ? C.green : pctQ >= 0.33 ? C.amber : C.red;
+      check(11);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...C.muted);
+      doc.text(q.title.length > 72 ? q.title.slice(0,71) + '…' : q.title, M + 2, y + 2.5);
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...C.black);
+      doc.text(opt.label.length > 68 ? opt.label.slice(0,67) + '…' : opt.label, M + 5, y + 7);
+      const bW = 22;
+      doc.setFillColor(...C.border); doc.rect(W - M - bW - 18, y + 2, bW, 2.5, 'F');
+      doc.setFillColor(...qcol); doc.rect(W - M - bW - 18, y + 2, bW * pctQ, 2.5, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...qcol);
+      doc.text(opt.score + '/' + Math.max(...q.options.map(o=>o.score)), W - M, y + 6.5, { align:'right' });
+      doc.setDrawColor(...C.border); doc.setLineWidth(0.3);
+      doc.line(M, y + 10, M + CW, y + 10);
+      y += 11;
+    });
+    y += 5;
+  });
+
+  // DISCLAIMER at end
+  check(20);
+  const dText = 'This tool is provided as an aide to decision-making only. Group Perfect accepts no liability for any decision made as a result of using this service. Please consider all relevant factors before committing to a bid.';
+  const dLines = doc.splitTextToSize(dText, CW - 24);
+  const dh = dLines.length * 4.5 + 10;
+  doc.setFillColor(255,244,232); doc.roundedRect(M, y, CW, dh, 2, 2, 'F');
+  doc.setDrawColor(245,123,12); doc.setLineWidth(0.5);
+  doc.roundedRect(M, y, CW, dh, 2, 2, 'S');
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(180,80,0);
+  doc.text('Disclaimer:', M + 4, y + 5.5);
+  let dy = y + 10.5;
+  doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(...C.muted);
+  dLines.forEach(line => { doc.text(line, M + 4, dy); dy += 4.5; });
+
+  addFooter();
+  const fname = 'bid-no-bid-' + (opp.name || 'assessment').toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'') + '.pdf';
+  doc.save(fname);
+}
+
 const Gauge = ({ pct, verdict }) => {
   const r = 72, cx = 100, cy = 95;
   const startAngle = -200, totalArc = 220;
@@ -290,7 +455,10 @@ export default function App() {
     const verdict = weightedScore < 33 ? "No Bid" : weightedScore < 66 ? "Bid with Caution" : "Bid";
     const verdictCol = weightedScore < 33 ? GP.red : weightedScore < 66 ? GP.amber : GP.green;
     const verdictBg = weightedScore < 33 ? GP.lrd : weightedScore < 66 ? GP.lam : GP.lgn;
-    return { weightedScore, sectionResults, verdict, verdictCol, verdictBg, totalAnswered, totalQs };
+    const sortedByPct = [...sectionResults].map((sr,i)=>({...sr,i})).sort((a,b)=>b.pct-a.pct);
+    const strongestSection = SECTIONS[sortedByPct[0].i].title;
+    const weakestSection = SECTIONS[sortedByPct[sortedByPct.length-1].i].title;
+    return { weightedScore, sectionResults, verdict, verdictCol, verdictBg, totalAnswered, totalQs, strongestSection, weakestSection };
   }, [answers, weights]);
 
   const sec = SECTIONS[currentSection];
@@ -637,7 +805,18 @@ export default function App() {
               <button onClick={() => setShowExport(false)} style={{ flex: 1, padding: "12px", borderRadius: 9, border: `1px solid ${GP.border}`, background: GP.white, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", color: GP.muted }}>
                 Cancel
               </button>
-              <button onClick={() => { if (exportEmail.includes("@")) { alert("PDF export — coming soon. The recommendation is: " + results.verdict); setShowExport(false); } }}
+              <button onClick={() => {
+                if (exportEmail.includes("@")) {
+                  try {
+                    generatePDF(opp, results, answers);
+                    setShowExport(false);
+                    setExportEmail("");
+                  } catch(e) {
+                    console.error(e);
+                    alert("PDF generation failed. Please try again.");
+                  }
+                }
+              }}
                 style={{ flex: 2, padding: "12px", borderRadius: 9, border: "none", background: GP.appBlue, color: GP.white, fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                 Download PDF
               </button>
