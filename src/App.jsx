@@ -271,14 +271,15 @@ function generatePDF(opp, results, answers) {
   y = 45;
 
   // VERDICT
+  const oppLabel = opp.name ? opp.name : 'this opportunity';
   const reasoningText = results.verdict === 'Bid'
-    ? 'Your score of ' + score + '% suggests this is a strong opportunity worth pursuing. Your strongest section is ' + results.strongestSection + '. Lean into this in your bid strategy.'
+    ? 'Your score of ' + score + '% suggests this is a strong opportunity. ' + results.strongestSection + ' is your strongest area. Lean into this in your bid strategy.'
     : results.verdict === 'Bid with Caution'
-    ? 'Your score of ' + score + '% puts this in the amber zone. You can bid but should address key risks first — particularly in ' + results.weakestSection + ' where your score is lowest.'
-    : 'Your score of ' + score + '% suggests this may not be the right opportunity. Your weakest area is ' + results.weakestSection + '. Unless circumstances change, your resources may be better deployed elsewhere.';
+    ? 'Your score of ' + score + '% places this in the amber zone. Consider addressing risks in ' + results.weakestSection + ' before committing fully.'
+    : 'Your score of ' + score + '% suggests this may not be the right opportunity to pursue. Your weakest area is ' + results.weakestSection + '. Unless circumstances change significantly, your resources may be better deployed elsewhere.';
 
   // Text fits within CW minus 16mm total padding (8mm each side)
-  const textW = CW - 16;
+  const textW = 160;
   const rLines = doc.splitTextToSize(reasoningText, textW);
   const lineH = 5.5;
   const headerH = 30; // space for verdict title, score, divider
@@ -834,17 +835,23 @@ export default function App() {
                 if (exportEmail.includes("@")) {
                   try {
                     generatePDF(opp, results, answers);
-                    // TODO: Post to HubSpot with exportConsent flag
-                    // fetch('https://api.hsforms.com/submissions/v3/integration/submit/YOUR_PORTAL_ID/YOUR_FORM_ID', {
-                    //   method: 'POST',
-                    //   headers: { 'Content-Type': 'application/json' },
-                    //   body: JSON.stringify({
-                    //     fields: [{ name: 'email', value: exportEmail }],
-                    //     legalConsentOptions: {
-                    //       consent: { consentToProcess: true, text: 'I agree', communications: [{ value: exportConsent, subscriptionTypeId: 999, text: 'Marketing consent' }] }
-                    //     }
-                    //   })
-                    // });
+                    // Send email via Formspree — replace YOUR_FORM_ID with your Formspree form ID
+                    const FORMSPREE_ID = "YOUR_FORM_ID";
+                    if (FORMSPREE_ID !== "YOUR_FORM_ID") {
+                      fetch("https://formspree.io/f/" + FORMSPREE_ID, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          email: exportEmail,
+                          opportunity: opp.name || "Not specified",
+                          client: opp.client || "Not specified",
+                          verdict: results.verdict,
+                          score: Math.round(results.weightedScore) + "%",
+                          marketing_consent: exportConsent ? "Yes" : "No",
+                          _subject: "Bid No Bid App — New Export: " + (opp.name || "Assessment"),
+                        }),
+                      }).catch(err => console.error("Formspree error:", err));
+                    }
                     setShowExport(false);
                     setExportEmail("");
                     setExportConsent(false);
