@@ -279,7 +279,7 @@ function generatePDF(opp, results, answers) {
     : 'Your score of ' + score + '% suggests this may not be the right opportunity to pursue. Your weakest area is ' + results.weakestSection + '. Unless circumstances change significantly, your resources may be better deployed elsewhere.';
 
   // Text fits within CW minus 16mm total padding (8mm each side)
-  const textW = 160;
+  const textW = 145;
   const rLines = doc.splitTextToSize(reasoningText, textW);
   const lineH = 5.5;
   const headerH = 30; // space for verdict title, score, divider
@@ -296,7 +296,7 @@ function generatePDF(opp, results, answers) {
   doc.text('Weighted score: ' + score + '% of maximum', M + 8, y + 21);
   doc.setDrawColor(...vCol); doc.setLineWidth(0.5);
   doc.line(M + 8, y + 24, M + CW - 8, y + 24);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...C.black);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...C.black);
   let ty = y + 30;
   rLines.forEach(line => { doc.text(line, M + 8, ty); ty += lineH; });
   y += bh + 6;
@@ -836,7 +836,7 @@ export default function App() {
                   try {
                     generatePDF(opp, results, answers);
                     // Send email via Formspree — replace YOUR_FORM_ID with your Formspree form ID
-                    const FORMSPREE_ID = "YOUR_FORM_ID";
+                    const FORMSPREE_ID = "mreynvdg";
                     if (FORMSPREE_ID !== "YOUR_FORM_ID") {
                       fetch("https://formspree.io/f/" + FORMSPREE_ID, {
                         method: "POST",
