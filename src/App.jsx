@@ -277,20 +277,27 @@ function generatePDF(opp, results, answers) {
     ? 'Your score of ' + score + '% puts this in the amber zone. You can bid but should address key risks first — particularly in ' + results.weakestSection + ' where your score is lowest.'
     : 'Your score of ' + score + '% suggests this may not be the right opportunity. Your weakest area is ' + results.weakestSection + '. Unless circumstances change, your resources may be better deployed elsewhere.';
 
-  const rLines = doc.splitTextToSize(reasoningText, CW - 16);
-  const bh = Math.max(38, 28 + rLines.length * 5.5 + 4);
+  // Text fits within CW minus 16mm total padding (8mm each side)
+  const textW = CW - 16;
+  const rLines = doc.splitTextToSize(reasoningText, textW);
+  const lineH = 5.5;
+  const headerH = 30; // space for verdict title, score, divider
+  const textH = rLines.length * lineH;
+  const padding = 8;
+  const bh = headerH + textH + padding;
+
   doc.setFillColor(...vBg); doc.roundedRect(M, y, CW, bh, 3, 3, 'F');
   doc.setDrawColor(...vCol); doc.setLineWidth(2);
   doc.roundedRect(M, y, CW, bh, 3, 3, 'S');
-  doc.setFont('helvetica','bold'); doc.setFontSize(28); doc.setTextColor(...vCol);
-  doc.text(verdict, M + 8, y + 16);
+  doc.setFont('helvetica','bold'); doc.setFontSize(26); doc.setTextColor(...vCol);
+  doc.text(verdict, M + 8, y + 14);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...C.muted);
-  doc.text('Weighted score: ' + score + '% of maximum', M + 8, y + 22);
+  doc.text('Weighted score: ' + score + '% of maximum', M + 8, y + 21);
   doc.setDrawColor(...vCol); doc.setLineWidth(0.5);
-  doc.line(M + 8, y + 25, M + CW - 8, y + 25);
+  doc.line(M + 8, y + 24, M + CW - 8, y + 24);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...C.black);
-  let ty = y + 31;
-  rLines.forEach(line => { doc.text(line, M + 8, ty); ty += 5.3; });
+  let ty = y + 30;
+  rLines.forEach(line => { doc.text(line, M + 8, ty); ty += lineH; });
   y += bh + 6;
 
   // SCORE BREAKDOWN
@@ -425,6 +432,7 @@ export default function App() {
   const [agreed, setAgreed] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [exportEmail, setExportEmail] = useState("");
+  const [exportConsent, setExportConsent] = useState(false);
 
   const handleAnswer = (secIdx, qIdx, optIdx) => {
     setAnswers(prev => {
@@ -798,19 +806,48 @@ export default function App() {
               <input value={exportEmail} onChange={e => setExportEmail(e.target.value)} placeholder="you@yourcompany.com"
                 style={{ width: "100%", padding: "11px 14px", borderRadius: 9, border: `1px solid ${GP.border}`, fontSize: 14, fontFamily: "inherit", color: GP.black }} />
             </div>
-            <div style={{ background: "#FFF8E6", border: "1px solid #F0C84A", borderRadius: 8, padding: "10px 14px", fontSize: 11, color: "#856000", marginBottom: 20, fontStyle: "italic" }}>
-              This tool is provided as an aide to decision-making. Group Perfect accepts no liability for decisions made as a result of using this service.
+            {/* Consent checkbox */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                <input type="checkbox" checked={exportConsent} onChange={e => setExportConsent(e.target.checked)}
+                  style={{ marginTop: 3, width: 15, height: 15, accentColor: GP.blue, flexShrink: 0, cursor: "pointer" }} />
+                <span style={{ fontSize: 12, color: GP.black, lineHeight: 1.6 }}>
+                  I'd like to receive helpful resources and insights from Group Perfect. You can unsubscribe at any time.
+                </span>
+              </label>
             </div>
+
+            {/* Privacy policy */}
+            <div style={{ fontSize: 11, color: GP.muted, marginBottom: 20, lineHeight: 1.6 }}>
+              We'll handle your data in accordance with our{" "}
+              <a href="https://www.bidperfect.com/privacy-policy" target="_blank" rel="noopener noreferrer"
+                style={{ color: GP.blue, textDecoration: "underline" }}>Privacy Policy</a>.
+              Your PDF will download regardless of whether you opt in.
+            </div>
+
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowExport(false)} style={{ flex: 1, padding: "12px", borderRadius: 9, border: `1px solid ${GP.border}`, background: GP.white, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", color: GP.muted }}>
+              <button onClick={() => { setShowExport(false); setExportConsent(false); setExportEmail(""); }}
+                style={{ flex: 1, padding: "12px", borderRadius: 9, border: `1px solid ${GP.border}`, background: GP.white, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", color: GP.muted }}>
                 Cancel
               </button>
               <button onClick={() => {
                 if (exportEmail.includes("@")) {
                   try {
                     generatePDF(opp, results, answers);
+                    // TODO: Post to HubSpot with exportConsent flag
+                    // fetch('https://api.hsforms.com/submissions/v3/integration/submit/YOUR_PORTAL_ID/YOUR_FORM_ID', {
+                    //   method: 'POST',
+                    //   headers: { 'Content-Type': 'application/json' },
+                    //   body: JSON.stringify({
+                    //     fields: [{ name: 'email', value: exportEmail }],
+                    //     legalConsentOptions: {
+                    //       consent: { consentToProcess: true, text: 'I agree', communications: [{ value: exportConsent, subscriptionTypeId: 999, text: 'Marketing consent' }] }
+                    //     }
+                    //   })
+                    // });
                     setShowExport(false);
                     setExportEmail("");
+                    setExportConsent(false);
                   } catch(e) {
                     console.error(e);
                     alert("PDF generation failed. Please try again.");
