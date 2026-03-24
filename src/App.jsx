@@ -263,7 +263,7 @@ function generatePDF(opp, results, answers) {
   doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(...C.white);
   doc.text('Bid No Bid App', M, 16);
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(170,195,225);
-  doc.text('by Group Perfect', M, 22);
+  doc.text('by Bid Perfect®, part of Group Perfect®', M, 22);
   doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...C.white);
   doc.text(opp.name || 'Bid Assessment', W - M, 16, { align:'right' });
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(170,195,225);
