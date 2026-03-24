@@ -738,8 +738,8 @@ export default function App() {
             {/* Modal header */}
             <div style={{ background: GP.dark, padding: "22px 28px 18px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-                <img src={BP_LOGO} alt="Bid Perfect" style={{ height: 24, width: "auto", display: "block" }} />
-                <span style={{ background: "rgba(0,174,239,0.2)", color: GP.appBlue, border: "1px solid rgba(0,174,239,0.4)", borderRadius: 20, padding: "2px 10px", fontSize: 10, fontWeight: 700 }}>by Group Perfect</span>
+                <div style={{ fontSize: 18, fontWeight: 800, color: GP.white }}>Bid No Bid App</div>
+                <span style={{ background: "rgba(0,174,239,0.2)", color: GP.appBlue, border: "1px solid rgba(0,174,239,0.4)", borderRadius: 20, padding: "2px 10px", fontSize: 10, fontWeight: 700 }}>by Bid Perfect, part of Group Perfect</span>
               </div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.7 }}>
                 An aide to deciding whether to invest your resources in planning and writing a bid. Answer each question honestly — the tool will calculate a weighted score and give you a clear recommendation.
